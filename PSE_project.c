@@ -22,7 +22,7 @@ int main()
 
     displayInit();
     clearDisplay();
-    writeString("ABC");
+    writeString("ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789");
     
     while (1)
     {
