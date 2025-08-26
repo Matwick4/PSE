@@ -1,7 +1,7 @@
 #ifndef DISPLAY_DRIVER_H
 #define DISPLAY_DRIVER_H
 
-#include "PSE_project.h"
+#include "common.h"
 #include "display/charHelper.h"
 
 

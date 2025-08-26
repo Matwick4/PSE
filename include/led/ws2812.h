@@ -1,9 +1,9 @@
-#ifndef WS2812_H
-#define WS2812_H
+#ifndef _WS2812__H_
+#define _WS2812__H_
 
 //TODO maybe put the PIO strucgt support here
 
-#include "PSE_project.h"
+#include "common.h"
 #include "led/ws2812.pio.h"
 
 

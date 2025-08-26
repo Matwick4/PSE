@@ -94,8 +94,12 @@ pico_sdk_init()
 add_executable(${PROJECT_NAME} 
                 include/led/ws2812.h
                 include/display/charHelper.h
+                include/accelerometer/MMA8451Q.h
+                
                 src/led/ws2812.c
                 src/display/displayDriver.c
+                src/accelerometer/MMA8451Q.c
+                
                 PSE_project.c)
 
 pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/src/led/ws2812.pio OUTPUT_DIR ${CMAKE_CURRENT_LIST_DIR}/include/led) 

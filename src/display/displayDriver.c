@@ -1,5 +1,5 @@
 #include "display/displayDriver.h"
-
+#include <ctype.h>
 
 
 static uint8_t memBuff[BUFF_LENGHT];//maybe add a variable to keep track where we arrived
