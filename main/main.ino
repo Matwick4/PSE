@@ -6,14 +6,16 @@
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_NeoPixel.h>
 #include <SparkFun_u-blox_GNSS_Arduino_Library.h> 
+#include <Adafruit_MMA8451.h>
+#include <Adafruit_Sensor.h>
 
 //USER DEFINE
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixel
 #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
 #define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
-#define OLED_SDA 0
-#define OLED_SCL 1
+#define SDA 0
+#define SCL 1
 #define BTN_UP 22
 #define BTN_DOWN 23
 #define BTN_RIGHT 24
@@ -27,11 +29,17 @@
 #define GPS_PPS 19
 #define TEMP_SENSOR 26
 #define BUZZER 21
+#define MAX_MENU 4
+#define SCREEN_CENTER_X SCREEN_WIDTH/2
+#define SCREEN_CENTER_Y SCREEN_HEIGHT/2
+#define CIRCLE_RAD 4
+
 
 // Function and struct declaration
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 Adafruit_NeoPixel strip(NUM_LED,LED_RGB,NEO_GRB+NEO_KHZ800);
 SFE_UBLOX_GNSS GPS;
+Adafruit_MMA8451 acc = Adafruit_MMA8451();
 
 void setupHardware(); // init display and other hardware, wait for GPS FIX and other stuff
 void showWaitStart(); // show "Press Button to Start"
@@ -39,12 +47,14 @@ void showSpeedMenu();
 void showDistanceMenu();
 void showTimeMenu();
 void showTempMenu();
+void showAccMenu();
 void showLoadingLED(); // show blue circling dot while user press start
 void mainMenu(); // main logic of the program
 void showLEDbasedOnSpeed();
 void updateMeasure(); // update all measure time, speed and distance
 void updateSpeed();
 void updateTime();
+void updateAcc();
 void updateTemperature();
 void updateDistance();
 float haversine(float lat1, float lat2, float lon1, float lon2);
@@ -69,7 +79,8 @@ float prevLat=0;
 float prevLon=0;
 float totalDistance=0; // total distance travelled in KM
 float displayTemp=0;
-
+float accX=0;
+float accY=0;
 
 void setup() {
 
@@ -99,7 +110,6 @@ void loop() {
       break;
     case 2: // user input and main program running
       mainMenu(); // to show various display
-      //updateMeasure(); // update speed and LED accordignly and distance travelled
       break;
     default: // we should never get here
       break;
@@ -110,8 +120,8 @@ void loop() {
 void setupHardware()
 {
   // setup I2C bus
-  Wire.setSDA(OLED_SDA);
-  Wire.setSCL(OLED_SCL);
+  Wire.setSDA(SDA);
+  Wire.setSCL(SCL);
   Wire.begin();
   
 
@@ -140,8 +150,6 @@ void setupHardware()
     display.display();
   }
 
-  
-
   //setup BTN pin
   pinMode(BTN_UP,INPUT);
   pinMode(BTN_DOWN,INPUT);
@@ -163,6 +171,11 @@ void setupHardware()
   Serial2.begin(9600);
   GPS.begin(Serial2);
   
+
+  //Setup accellerometro
+  acc.begin(0x1C,&Wire);
+  acc.setRange(MMA8451_RANGE_2_G);
+
   pinMode(TEMP_SENSOR, INPUT);
   //setup RGB LED
   strip.begin();
@@ -226,7 +239,14 @@ void showTempMenu()
   display.printf("%.1f C\n",displayTemp);
   display.display();
 }
+void showAccMenu()
+{
+  display.clearDisplay();
 
+  display.fillCircle(SCREEN_CENTER_X+(ceil(28*accX)), SCREEN_CENTER_Y+(ceil(28*accY)), CIRCLE_RAD,SSD1306_WHITE);
+
+  display.display();
+}
 void showLoadingLED()
 {
   if (showLoadingLED) {
@@ -280,6 +300,8 @@ void mainMenu()
     case 3:
       showTempMenu();
       break;
+    case 4:
+      showAccMenu();
     default:
       break;
   }
@@ -338,8 +360,7 @@ void updateMeasure()
   updateTime();
   updateDistance();
   updateTemperature();
-  showLEDbasedOnSpeed();
-  
+  updateAcc();
 }
 void updateSpeed()
 {
@@ -350,12 +371,12 @@ void updateSpeed()
   Serial.printf("Ground Speed %.2f km/h\n",displaySpeed);
   if(displaySpeed > 70)
     tone(BUZZER,440,500);
-
+   showLEDbasedOnSpeed();  
 }
 void updateDistance()
 {
-  float tmpLat=GPS.getLatitude();
-  float tmpLon=GPS.getLongitude();
+  float tmpLat=GPS.getLatitude()*10^-7;
+  float tmpLon=GPS.getLongitude()*10^-7;
   float partialDist=haversine(tmpLat,prevLat,tmpLon,prevLon);
   totalDistance+= partialDist/1000;
 
@@ -379,10 +400,10 @@ void updateTime()
 
 void BTN_UP_ISR()
 {
-  if(currentMenuWindow <3 )
+  if(currentMenuWindow <MAX_MENU )
   {
     currentMenuWindow++;
-    delay(200);
+    delay(50);
   }
 }
 
@@ -391,7 +412,7 @@ void BTN_DOWN_ISR()
   if(currentMenuWindow >0)
   {
     currentMenuWindow--;
-    delay(200);
+    delay(50);
   }
 }
 
@@ -416,4 +437,12 @@ void updateTemperature()
   float voltage = analogValue * (3.3 / 1023.0); // Convert to voltage (assuming 5V Vcc)
 
   displayTemp = (voltage - 0.5) * 100.0; // Convert to °C
+}
+void updateAcc()
+{
+  sensors_event_t event;
+  acc.getEvent(&event);
+
+  accX=event.acceleration.x/9.81; // so we get acc in G
+  accY=event.acceleration.y/9.81;
 }
